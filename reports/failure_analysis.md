@@ -2,21 +2,22 @@
 
 **Học viên:** Đinh Hồng Đăng  
 **Mã học viên:** 2A202601480  
+**Tập dữ liệu Benchmark:** `data/graphrag_golden_50_first5000.csv`  
 
 ---
 
 ## 1. Ca lỗi Flat RAG thất bại — GraphRAG thành công
-- **Question ID:** `G02`
-- **Câu hỏi:** *"Which tech companies or executives partnered with or acquired IT solutions providers?"*
-- **Triệu chứng của Flat RAG:** Flat RAG chỉ trích xuất các đoạn văn bản có độ tương đồng từ khóa cao về "partner" hoặc "acquired". Do các sự kiện mua lại được diễn đạt theo văn phong báo chí tài chính gián tiếp và phân bổ qua nhiều đoạn rời rạc, Flat RAG không liên kết được việc `Intelligent Technical Solutions` mua lại `GreenPages` cùng các đối tác phụ trợ. Điểm Comprehensiveness bị LLM Judge chấm 2/5.
-- **Cách GraphRAG giải quyết:** Graph retrieval xuất phát từ seed matching các thực thể IT, duyệt BFS qua cạnh `[:ACQUIRED]` và `[:PARTNERED_WITH]`. Đồ thị tuyến tính hóa context dạng có cấu trúc kèm dẫn chứng `[chunk_id=...]`, giúp LLM sinh câu trả lời đầy đủ và đạt điểm tối đa Comprehensiveness 5/5.
+- **Question ID:** `G5000-27`
+- **Câu hỏi:** *"How should the graph reconcile the statement that AMD powers multiple cloud services with the later Reuters report about AWS considering AMD AI chips?"*
+- **Triệu chứng của Flat RAG:** Flat RAG chỉ trích xuất các đoạn văn bản có độ tương đồng từ khóa cao về "AMD" hoặc "AWS". Tuy nhiên, do thông tin đến từ 2 bài báo có mốc thời gian khác nhau (ngày 1/6: AMD powers cloud services; ngày 13/6: Reuters đưa tin AWS mới đang cân nhắc chip AI của AMD), Flat RAG không thể sắp xếp và đối chiếu được dòng thời gian logic, đưa ra câu trả lời mơ hồ và bị LLM Judge chấm điểm 1/5.
+- **Cách GraphRAG giải quyết:** Graph retrieval duyệt qua các cạnh đồ thị có thuộc tính thời gian `published_date` và `source_chunk_id`. Đồ thị tuyến tính hóa thứ tự diễn biến: (1) bài báo tháng 6 ghi nhận AMD chip trong cloud services chung, (2) bài báo sau đó của Reuters nêu rõ AWS mới đang ở giai đoạn đánh giá/cân nhắc chưa chốt quyết định. GraphRAG đạt điểm tuyệt đối: **Faithfulness: 5/5, Comprehensiveness: 4/5, Multi-hop reasoning: 4/5**.
 
 ---
 
 ## 2. Ca lỗi GraphRAG gặp khó khăn & Giải pháp khắc phục
-- **Question ID:** `G01`
-- **Câu hỏi:** *"Who was the CEO of Hugging Face in 2023?"*
-- **Triệu chứng:** Khi câu hỏi yêu cầu tra cứu một thông tin đơn lẻ (Factoid) mà thực thể chưa kịp xuất hiện trong tập chunk trích xuất đồ thị giới hạn (extraction sample), Seed Matcher không tìm thấy Seed Node trên Neo4j, dẫn đến việc Graph Context bị rỗng.
-- **Nguyên nhân gốc rễ (Root-cause):** Phụ thuộc hoàn toàn vào Seed Matching và độ bao phủ (coverage) của đồ thị tri thức offline.
-- **Đề xuất khắc phục (Self-Correction & Fallback):**
-  - Tích hợp pipeline **Hybrid Retrieval có khả năng tự sửa lỗi (Self-Correction)**: Đánh giá độ đầy đủ ngữ cảnh (`context_sufficient`). Nếu Graph retrieval trả về empty hoặc thiếu bằng chứng, hệ thống tự động fallback mở rộng Top-K Vector Search từ FAISS để bù đắp thông tin tức thì.
+- **Question ID:** `G5000-47`
+- **Câu hỏi:** *"In the Keysight–Synopsys IoT cybersecurity record, does the mention of Palo Alto Networks establish Palo Alto as a partner in that deal?"*
+- **Triệu chứng:** Câu hỏi Factoid yêu cầu xác định mối quan hệ phủ định (Palo Alto Networks không phải đối tác trong thương vụ Keysight–Synopsys). Nếu Seed Matcher bắt nhầm nút Palo Alto và đưa vào context các cạnh không liên quan của Palo Alto ở bài viết khác, Graph context có thể gây nhiễu và làm giảm Faithfulness.
+- **Nguyên nhân gốc rễ (Root-cause):** Đồ thị Knowledge Graph trích xuất các mối quan hệ khẳng định có cấu trúc, ít khi lưu quan hệ phủ định.
+- **Đề xuất khắc phục (Self-Correction & Hybrid Fusion):**
+  - Tích hợp pipeline **Hybrid Retrieval có khả năng tự sửa lỗi (Self-Correction)**: Đánh giá độ đầy đủ ngữ cảnh (`context_sufficient`). Đối với các câu hỏi phân định ranh giới quan hệ hoặc kiểm tra tính hợp lệ của đối tác, tự động kết hợp phân tích văn bản gốc từ Flat Vector Search để xác nhận bối cảnh bề mặt.

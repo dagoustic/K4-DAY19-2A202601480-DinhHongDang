@@ -3,6 +3,7 @@
 **Học viên:** Đinh Hồng Đăng  
 **Mã học viên:** 2A202601480  
 **Khóa học:** AICB-K34 – Track 3: GraphRAG  
+**Bộ dữ liệu Đánh giá:** `data/graphrag_golden_50_first5000.csv` (Golden Benchmark 2026)  
 **Ngày thực hiện:** 19/08/2026  
 
 ---
@@ -54,27 +55,29 @@
 
 ---
 
-### 4. So Sánh Thực Nghiệm (Flat RAG vs GraphRAG)
+### 4. So Sánh Thực Nghiệm (Flat RAG vs GraphRAG trên `graphrag_golden_50_first5000.csv`)
 
 #### Bảng tổng hợp Benchmark (LLM-as-a-Judge):
 
 | Tiêu chí đánh giá | Flat RAG | GraphRAG | Độ chênh lệch ($\Delta$) | Nhận xét phân tích |
 |:---|:---:|:---:|:---:|:---|
-| **Comprehensiveness (Multi-hop)** | 1.500 | **3.000** | **+1.500** | GraphRAG vượt trội rõ rệt nhờ kết nối quan hệ đa bước qua các thực thể trung gian. |
-| **Faithfulness (Multi-hop)** | 1.500 | **2.000** | **+0.500** | Cạnh đồ thị kèm explicit evidence giúp giảm hiện tượng đoán mò facts. |
-| **Comprehensiveness (Cross-doc)** | 1.000 | **1.500** | **+0.500** | Đồ thị kết nối thông tin từ nhiều bài viết khác nhau tốt hơn vector độc lập. |
-| **Latency trung bình (s)** | 3.888s | **1.703s** | **-2.185s** | Hybrid Graph retrieval lấy context cô đọng, giảm thời gian sinh của LLM. |
-| **Token usage trung bình** | 888 tokens | 1108 tokens | +220 tokens | Graph context bổ sung chuỗi quan hệ có cấu trúc nên token đầu vào lớn hơn nhẹ. |
+| **Comprehensiveness (Cross-doc)** | 1.000 | **4.000** | **+3.000** | GraphRAG vượt trội hoàn toàn trong việc tổng hợp và đối chiếu thông tin từ nhiều nguồn bài báo. |
+| **Faithfulness (Cross-doc)** | 1.000 | **5.000** | **+4.000** | Cạnh đồ thị kèm explicit evidence và ngày tháng giúp LLM đạt độ trung thực tối đa (5/5). |
+| **Multi-hop Reasoning (Cross-doc)** | 1.000 | **4.000** | **+3.000** | Khả năng xâu chuỗi thông tin theo đường đi quan hệ trên đồ thị vượt xa vector search độc lập. |
+| **Comprehensiveness (Factoid)** | 2.500 | 2.500 | 0.000 | Hai phương pháp tương đương nhau trên các câu hỏi tra cứu một sự thật đơn lẻ. |
+| **Faithfulness (Factoid)** | 3.000 | 1.500 | -1.500 | Flat RAG tìm kiếm từ khóa cục bộ tốt hơn khi thực thể chưa được nạp đủ trên đồ thị. |
+| **Latency trung bình (s)** | 3.273s | 6.398s | +3.125s | Graph retrieval cần thời gian duyệt BFS qua nhiều hops và linearize context. |
+| **Token usage trung bình** | 1120.6 tokens | 847.5 tokens | -273.1 tokens | Graph context chọn lọc cạnh chính xác nên tổng token tiêu thụ tiết kiệm hơn. |
 
 #### Phân tích 2 Ca lỗi Điển hình:
-1. **Ca lỗi Flat RAG thất bại (GraphRAG thành công — Query G02):**
-   - *Question ID & Câu hỏi:* `G02` — *"Which tech companies or executives partnered with or acquired IT solutions providers?"*
-   - *Tại sao Flat RAG thất bại?* Flat RAG dùng semantic embedding chỉ retrieve được các chunk có chứa từ khóa bề mặt hoặc ngữ nghĩa tương đồng chung chung. Tuy nhiên, thông tin về bên mua (`Intelligent Technical Solutions`) và bên được mua (`GreenPages`) nằm rải rác ở các câu cách xa nhau hoặc liên kết qua đối tác vùng, khiến vector search bỏ sót mối quan hệ logic.
-   - *GraphRAG đã giải quyết như thế nào?* Graph traversal xuất phát từ seed `Intelligent Technical Solutions` đi qua cạnh `[:ACQUIRED]` tới `GreenPages` và `[:PARTNERED_WITH]`, linearized thành context rõ ràng kèm chunk provenance, giúp LLM trả lời trọn vẹn điểm tối đa (Comprehensiveness = 5/5).
-2. **Ca lỗi GraphRAG gặp khó khăn (Query G01 — Factoid Lookup):**
-   - *Question ID & Câu hỏi:* `G01` — *"Who was the CEO of Hugging Face in 2023?"*
-   - *Nguyên nhân:* Khi thực thể hoặc quan hệ `LEADS` của câu hỏi không xuất hiện trong tập chunk trích xuất (extraction subset 150 chunks), Seed Matcher không tìm thấy seed node trong đồ thị Neo4j. Graph retrieval rơi vào trạng thái empty context.
-   - *Đề xuất khắc phục:* Triển khai cơ chế **Hybrid Fallback** linh hoạt (như đã demo ở Bonus Self-Correction): nếu Graph context không đủ bằng chứng (`sufficient == false`), tự động mở rộng bán kính sang Hop 3 hoặc kết hợp toàn diện với Vector Top-K search.
+1. **Ca lỗi Flat RAG thất bại (GraphRAG thành công — Query G5000-27):**
+   - *Question ID & Câu hỏi:* `G5000-27` — *"How should the graph reconcile the statement that AMD powers multiple cloud services with the later Reuters report about AWS considering AMD AI chips?"*
+   - *Tại sao Flat RAG thất bại?* Flat RAG chỉ trích xuất các đoạn văn bản có từ khóa "AMD" hoặc "AWS", nhưng không xâu chuỗi được mốc thời gian giữa 2 sự kiện: bài viết ngày 1/6 (tuyên bố chung về chip AMD) và bài báo Reuters ngày 13/6 (AWS mới chỉ cân nhắc chip AI mới, chưa quyết định chính thức). Flat RAG đưa ra câu trả lời mơ hồ, bị LLM Judge chấm điểm 1/5.
+   - *GraphRAG đã giải quyết như thế nào?* Graph traversal duyệt qua 2 cạnh thời gian có `published_date` rõ ràng: `(AMD)-[:POWERS]->(Cloud Services)` và `(AWS)-[:CONSIDERING]->(AMD AI Chips)`. Đồ thị tuyến tính hóa thứ tự thời gian, giúp LLM tổng hợp chính xác sự tiến triển quan hệ và đạt điểm tuyệt đối: **Faithfulness: 5/5, Comprehensiveness: 4/5**.
+2. **Ca lỗi GraphRAG gặp khó khăn (Query G5000-47 — Factoid Lookup):**
+   - *Question ID & Câu hỏi:* `G5000-47` — *"In the Keysight–Synopsys IoT cybersecurity record, does the mention of Palo Alto Networks establish Palo Alto as a partner in that deal?"*
+   - *Nguyên nhân:* Câu hỏi đòi hỏi nhận biết sự "phủ định" hoặc phân biệt vai trò đối tác chính (`Keysight` - `Synopsys`) với đối tác của bài viết khác (`Palo Alto Networks`). Nếu đồ thị chưa trích xuất cạnh phủ định hoặc seed matcher bắt nhầm thực thể Palo Alto, Graph context có thể mang lại thông tin gây nhiễu.
+   - *Đề xuất khắc phục:* Triển khai cơ chế **Self-Correction Graph Retrieval**: khi độ tự tin của Graph Context thấp hoặc câu hỏi mang tính phân định vai trò, tự động kết hợp phân tích câu văn gốc từ Flat Vector Search để xác nhận ngữ cảnh bề mặt.
 
 ---
 

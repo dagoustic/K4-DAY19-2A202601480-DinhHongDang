@@ -3,6 +3,7 @@
 **Học viên:** Đinh Hồng Đăng  
 **Mã học viên:** 2A202601480  
 **Khóa học:** AICB-K34 – Track 3: GraphRAG  
+**Bộ dữ liệu Đánh giá:** `data/graphrag_golden_50_first5000.csv`  
 
 ---
 
@@ -33,12 +34,12 @@
 
 ---
 
-### Câu 4: Đánh Giá So Sánh Benchmark & Phân Tích Ca Lỗi
+### Câu 4: Đánh Giá So Sánh Benchmark & Phân Tích Ca Lỗi (trên `graphrag_golden_50_first5000.csv`)
 - **Kết quả Benchmark tổng hợp:**
-  - *Comprehensiveness (Multi-hop):* GraphRAG đạt **3.000** so với Flat RAG **1.500** ($\Delta = +1.500$).
-  - *Faithfulness (Multi-hop):* GraphRAG đạt **2.000** so với Flat RAG **1.500**.
-  - *Latency:* GraphRAG đạt **1.703s** (cô đọng) so với Flat RAG **3.888s**.
-- **Ca Flat RAG thất bại (G02):** Vector search không thể xâu chuỗi thông tin mua lại giữa `Intelligent Technical Solutions` và `GreenPages` do phân tán ở các câu độc lập; Graph traversal giải quyết trọn vẹn nhờ đường đi đồ thị rõ ràng.
+  - *Comprehensiveness (Cross-doc):* GraphRAG đạt **4.000** so với Flat RAG **1.000** ($\Delta = +3.000$).
+  - *Faithfulness (Cross-doc):* GraphRAG đạt **5.000** so với Flat RAG **1.000** ($\Delta = +4.000$).
+  - *Multi-hop Reasoning (Cross-doc):* GraphRAG đạt **4.000** so với Flat RAG **1.000** ($\Delta = +3.000$).
+- **Ca Flat RAG thất bại (G5000-27):** Vector search không thể xâu chuỗi và đối chiếu mốc thời gian giữa bài báo 1/6 (AMD powers cloud services) và tin Reuters 13/6 (AWS mới chỉ cân nhắc chip AMD); Graph traversal thể hiện rõ chuỗi cạnh thời gian kèm provenance.
 
 ---
 
